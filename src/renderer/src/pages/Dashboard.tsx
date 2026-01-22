@@ -6,19 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Wrench, CheckCircle2, XCircle, Activity, TrendingUp, Clock } from 'lucide-react'
 import { useToolStore } from '@/store/toolStore'
-import { useServerStore } from '@/store/serverStore'
 import type { Tool } from '@shared/types'
 
 export function Dashboard() {
   const navigate = useNavigate()
   const { tools, fetchTools } = useToolStore()
-  const { status, fetchStatus } = useServerStore()
   const [recentTools, setRecentTools] = useState<Tool[]>([])
 
   useEffect(() => {
     fetchTools()
-    fetchStatus()
-  }, [fetchTools, fetchStatus])
+  }, [fetchTools])
 
   useEffect(() => {
     // Sort by updatedAt and get most recent 5
@@ -105,17 +102,15 @@ export function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className={`bg-gradient-to-br ${status.running ? 'from-green-500/10 to-green-500/5 border-green-500/20' : 'from-red-500/10 to-red-500/5 border-red-500/20'}`}>
+            <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-text-secondary">Server Status</p>
-                    <p className={`text-lg font-bold mt-2 ${status.running ? 'text-green-400' : 'text-red-400'}`}>
-                      {status.running ? 'Running' : 'Stopped'}
-                    </p>
+                    <p className="text-sm font-medium text-text-secondary">HTTP Tools</p>
+                    <p className="text-3xl font-bold text-white mt-2">{stats.httpTools}</p>
                   </div>
-                  <div className={`${status.running ? 'bg-green-500/20' : 'bg-red-500/20'} p-3 rounded-lg`}>
-                    <Activity className={`size-6 ${status.running ? 'text-green-400' : 'text-red-400'}`} />
+                  <div className="bg-blue-500/20 p-3 rounded-lg">
+                    <Activity className="size-6 text-blue-400" />
                   </div>
                 </div>
               </CardContent>

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { Tool, ServerConfig, ServerStatus, TestResult, LogEntry } from '../shared/types'
+import type { Tool, ServerConfig, TestResult } from '../shared/types'
 
 // Custom APIs for renderer
 const api = {
@@ -15,16 +15,6 @@ const api = {
     duplicate: (id: string): Promise<Tool> => ipcRenderer.invoke('tools:duplicate', id),
     test: (id: string, params: Record<string, unknown>): Promise<TestResult> =>
       ipcRenderer.invoke('tools:test', id, params)
-  },
-  server: {
-    getStatus: (): Promise<ServerStatus> => ipcRenderer.invoke('server:getStatus'),
-    start: (): Promise<void> => ipcRenderer.invoke('server:start'),
-    stop: (): Promise<void> => ipcRenderer.invoke('server:stop'),
-    restart: (): Promise<void> => ipcRenderer.invoke('server:restart'),
-    getLogs: (): Promise<LogEntry[]> => ipcRenderer.invoke('server:getLogs'),
-    onStatusChange: (callback: (status: ServerStatus) => void): void => {
-      ipcRenderer.on('server:statusChange', (_, status) => callback(status))
-    }
   },
   config: {
     get: (): Promise<ServerConfig> => ipcRenderer.invoke('config:get'),

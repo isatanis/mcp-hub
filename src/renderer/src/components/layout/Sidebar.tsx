@@ -1,9 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Wrench, Terminal, Settings as SettingsIcon, Power } from 'lucide-react'
-import { useServerStore } from '@/store/serverStore'
-import { Badge } from '@/components/ui/badge'
-import { useEffect } from 'react'
+import { LayoutDashboard, Wrench, Terminal, Settings as SettingsIcon } from 'lucide-react'
 
 interface SidebarProps {
   className?: string
@@ -11,13 +8,6 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const location = useLocation()
-  const { status, fetchStatus, startServer, stopServer } = useServerStore()
-
-  useEffect(() => {
-    fetchStatus()
-    const interval = setInterval(fetchStatus, 5000) // Poll every 5 seconds
-    return () => clearInterval(interval)
-  }, [fetchStatus])
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -29,14 +19,6 @@ export function Sidebar({ className }: SidebarProps) {
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
     return location.pathname.startsWith(path)
-  }
-
-  const handleToggleServer = async () => {
-    if (status.running) {
-      await stopServer()
-    } else {
-      await startServer()
-    }
   }
 
   return (
@@ -56,33 +38,6 @@ export function Sidebar({ className }: SidebarProps) {
             <h1 className="font-bold text-lg leading-tight">MCP Builder</h1>
             <p className="text-xs text-text-secondary font-medium">v1.0.0</p>
           </div>
-        </div>
-
-        {/* Server Status */}
-        <div className="bg-surface-dark rounded-lg p-3 border border-border-dark">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-text-secondary">Server Status</span>
-            <Badge variant={status.running ? 'success' : 'secondary'} className="text-[10px]">
-              {status.running ? 'Running' : 'Stopped'}
-            </Badge>
-          </div>
-          <button
-            onClick={handleToggleServer}
-            className={cn(
-              'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-medium text-sm transition-all',
-              status.running
-                ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20'
-                : 'bg-primary text-white hover:bg-primary-hover'
-            )}
-          >
-            <Power className="size-4" />
-            {status.running ? 'Stop Server' : 'Start Server'}
-          </button>
-          {status.running && status.connectedClients > 0 && (
-            <div className="mt-2 text-xs text-text-secondary text-center">
-              {status.connectedClients} client{status.connectedClients !== 1 ? 's' : ''} connected
-            </div>
-          )}
         </div>
 
         {/* Nav Items */}
