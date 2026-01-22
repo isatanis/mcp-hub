@@ -215,6 +215,7 @@ export class HttpExecutor {
       return {
         success: response.ok,
         duration,
+        executorType: 'http',
         request: {
           method: config.method,
           url,
@@ -233,6 +234,7 @@ export class HttpExecutor {
       return {
         success: false,
         duration,
+        executorType: 'http',
         request: {
           method: config.method,
           url: config.url,

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Save, Play, ArrowLeft, Plus, X, Loader2 } from 'lucide-react'
 import { useToolStore } from '@/store/toolStore'
 import { useToast } from '@/components/ui/toast'
-import type { Tool, HttpConfig, ToolParameter } from '@shared/types'
+import type { Tool, HttpConfig, CliConfig, ToolParameter } from '@shared/types'
 
 export function ToolEditor() {
   const { id } = useParams()
@@ -53,6 +53,43 @@ export function ToolEditor() {
   const hasChanges = JSON.stringify(tool) !== originalToolRef.current
 
   const httpConfig = tool.executorConfig as HttpConfig
+  const cliConfig = tool.executorConfig as CliConfig
+
+  const handleExecutorTypeChange = (newType: Tool['executorType']) => {
+    if (newType === 'http') {
+      setTool({
+        ...tool,
+        executorType: 'http',
+        executorConfig: {
+          method: 'GET',
+          url: '',
+          headers: {},
+          bodyTemplate: '',
+          timeout: 5000
+        } as HttpConfig,
+        parameters: tool.parameters?.map(p => ({
+          ...p,
+          location: p.location === 'argument' || p.location === 'env' ? 'query' : p.location
+        })) || []
+      })
+    } else if (newType === 'cli') {
+      setTool({
+        ...tool,
+        executorType: 'cli',
+        executorConfig: {
+          command: '',
+          workingDir: '',
+          timeout: 30000,
+          shell: true
+        } as CliConfig,
+        auth: { type: 'none' },
+        parameters: tool.parameters?.map(p => ({
+          ...p,
+          location: 'argument'
+        })) || []
+      })
+    }
+  }
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -89,6 +126,7 @@ export function ToolEditor() {
   }
 
   const addParameter = () => {
+    const defaultLocation = tool.executorType === 'cli' ? 'argument' : 'query'
     setTool({
       ...tool,
       parameters: [
@@ -98,7 +136,7 @@ export function ToolEditor() {
           type: 'string',
           description: '',
           required: false,
-          location: 'query'
+          location: defaultLocation
         }
       ]
     })
@@ -209,127 +247,218 @@ export function ToolEditor() {
                   onChange={(e) => setTool({ ...tool, enabled: e.target.checked })}
                 />
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Executor Type</label>
+                <Select
+                  value={tool.executorType || 'http'}
+                  onChange={(e) => handleExecutorTypeChange(e.target.value as Tool['executorType'])}
+                >
+                  <option value="http">HTTP Request</option>
+                  <option value="cli">CLI / Bash Command</option>
+                </Select>
+                <p className="text-xs text-text-secondary">
+                  {tool.executorType === 'cli'
+                    ? 'Execute shell commands or CLI programs'
+                    : 'Make HTTP/REST API calls'}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
           {/* Executor Config */}
           <Card>
             <CardHeader>
-              <CardTitle>Executor Configuration</CardTitle>
+              <CardTitle>
+                {tool.executorType === 'cli' ? 'CLI Configuration' : 'HTTP Configuration'}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Method</label>
-                <Select
-                  value={httpConfig.method}
-                  onChange={(e) =>
-                    setTool({
-                      ...tool,
-                      executorConfig: { ...httpConfig, method: e.target.value as HttpConfig['method'] }
-                    })
-                  }
-                >
-                  <option value="GET">GET</option>
-                  <option value="POST">POST</option>
-                  <option value="PUT">PUT</option>
-                  <option value="DELETE">DELETE</option>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">URL Endpoint</label>
-                <Input
-                  value={httpConfig.url}
-                  onChange={(e) =>
-                    setTool({
-                      ...tool,
-                      executorConfig: { ...httpConfig, url: e.target.value }
-                    })
-                  }
-                  placeholder="https://api.example.com/weather?city={city}"
-                  className="font-mono"
-                />
-                <p className="text-xs text-text-secondary">Use {'{param}'} for parameter placeholders</p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium">Headers</label>
-                  <Button variant="ghost" size="sm" onClick={addHeader}>
-                    <Plus className="size-4" />
-                    Add Header
-                  </Button>
-                </div>
-                {Object.entries(httpConfig.headers || {}).map(([key, value], index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={key}
-                      onChange={(e) => updateHeader(key, e.target.value, value)}
-                      placeholder="Header Name"
-                      className="flex-1 font-mono"
+              {tool.executorType === 'cli' ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Command*</label>
+                    <Textarea
+                      value={cliConfig.command || ''}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...cliConfig, command: e.target.value }
+                        })
+                      }
+                      placeholder="ls -la {path}"
+                      rows={3}
+                      className="font-mono"
                     />
-                    <Input
-                      value={value}
-                      onChange={(e) => updateHeader(key, key, e.target.value)}
-                      placeholder="Header Value"
-                      className="flex-1 font-mono"
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => removeHeader(key)}>
-                      <X className="size-4" />
-                    </Button>
+                    <p className="text-xs text-text-secondary">
+                      Use {'{param}'} for parameter placeholders. Example: curl -s {'{url}'} | jq {'{filter}'}
+                    </p>
                   </div>
-                ))}
-              </div>
 
-              {(httpConfig.method === 'POST' || httpConfig.method === 'PUT') && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Body Template (JSON)</label>
-                  <Textarea
-                    value={httpConfig.bodyTemplate}
-                    onChange={(e) =>
-                      setTool({
-                        ...tool,
-                        executorConfig: { ...httpConfig, bodyTemplate: e.target.value }
-                      })
-                    }
-                    placeholder={'{\n  "city": "{city}",\n  "units": "metric"\n}'}
-                    rows={5}
-                    className="font-mono"
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Working Directory</label>
+                    <Input
+                      value={cliConfig.workingDir || ''}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...cliConfig, workingDir: e.target.value }
+                        })
+                      }
+                      placeholder="/path/to/directory (optional)"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-text-secondary">Directory to run the command in (defaults to current directory)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Timeout (ms)</label>
+                    <Input
+                      type="number"
+                      value={cliConfig.timeout || 30000}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...cliConfig, timeout: parseInt(e.target.value) || 30000 }
+                        })
+                      }
+                      placeholder="30000"
+                    />
+                    <p className="text-xs text-text-secondary">Command timeout in milliseconds (default: 30000)</p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium">Run in Shell</label>
+                      <p className="text-xs text-text-secondary">Execute command through /bin/sh (enables pipes, redirects, etc.)</p>
+                    </div>
+                    <Switch
+                      checked={cliConfig.shell !== false}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...cliConfig, shell: e.target.checked }
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Method</label>
+                    <Select
+                      value={httpConfig.method}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...httpConfig, method: e.target.value as HttpConfig['method'] }
+                        })
+                      }
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                      <option value="DELETE">DELETE</option>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">URL Endpoint</label>
+                    <Input
+                      value={httpConfig.url}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...httpConfig, url: e.target.value }
+                        })
+                      }
+                      placeholder="https://api.example.com/weather?city={city}"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-text-secondary">Use {'{param}'} for parameter placeholders</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium">Headers</label>
+                      <Button variant="ghost" size="sm" onClick={addHeader}>
+                        <Plus className="size-4" />
+                        Add Header
+                      </Button>
+                    </div>
+                    {Object.entries(httpConfig.headers || {}).map(([key, value], index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          value={key}
+                          onChange={(e) => updateHeader(key, e.target.value, value)}
+                          placeholder="Header Name"
+                          className="flex-1 font-mono"
+                        />
+                        <Input
+                          value={value}
+                          onChange={(e) => updateHeader(key, key, e.target.value)}
+                          placeholder="Header Value"
+                          className="flex-1 font-mono"
+                        />
+                        <Button variant="ghost" size="icon" onClick={() => removeHeader(key)}>
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {(httpConfig.method === 'POST' || httpConfig.method === 'PUT') && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Body Template (JSON)</label>
+                      <Textarea
+                        value={httpConfig.bodyTemplate}
+                        onChange={(e) =>
+                          setTool({
+                            ...tool,
+                            executorConfig: { ...httpConfig, bodyTemplate: e.target.value }
+                          })
+                        }
+                        placeholder={'{\n  "city": "{city}",\n  "units": "metric"\n}'}
+                        rows={5}
+                        className="font-mono"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Response Path (JSONPath)</label>
+                    <Input
+                      value={httpConfig.responsePath || ''}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...httpConfig, responsePath: e.target.value }
+                        })
+                      }
+                      placeholder="$.data.temperature"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-text-secondary">Extract a specific field from the response (e.g., $.data.result)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Timeout (ms)</label>
+                    <Input
+                      type="number"
+                      value={httpConfig.timeout || 5000}
+                      onChange={(e) =>
+                        setTool({
+                          ...tool,
+                          executorConfig: { ...httpConfig, timeout: parseInt(e.target.value) || 5000 }
+                        })
+                      }
+                      placeholder="5000"
+                    />
+                    <p className="text-xs text-text-secondary">Request timeout in milliseconds (default: 5000)</p>
+                  </div>
+                </>
               )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Response Path (JSONPath)</label>
-                <Input
-                  value={httpConfig.responsePath || ''}
-                  onChange={(e) =>
-                    setTool({
-                      ...tool,
-                      executorConfig: { ...httpConfig, responsePath: e.target.value }
-                    })
-                  }
-                  placeholder="$.data.temperature"
-                  className="font-mono"
-                />
-                <p className="text-xs text-text-secondary">Extract a specific field from the response (e.g., $.data.result)</p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Timeout (ms)</label>
-                <Input
-                  type="number"
-                  value={httpConfig.timeout || 5000}
-                  onChange={(e) =>
-                    setTool({
-                      ...tool,
-                      executorConfig: { ...httpConfig, timeout: parseInt(e.target.value) || 5000 }
-                    })
-                  }
-                  placeholder="5000"
-                />
-                <p className="text-xs text-text-secondary">Request timeout in milliseconds (default: 5000)</p>
-              </div>
             </CardContent>
           </Card>
 
@@ -403,10 +532,19 @@ export function ToolEditor() {
                               updateParameter(index, { location: e.target.value as ToolParameter['location'] })
                             }
                           >
-                            <option value="query">Query</option>
-                            <option value="path">Path</option>
-                            <option value="body">Body</option>
-                            <option value="header">Header</option>
+                            {tool.executorType === 'cli' ? (
+                              <>
+                                <option value="argument">Argument (in command)</option>
+                                <option value="env">Environment Variable</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="query">Query</option>
+                                <option value="path">Path</option>
+                                <option value="body">Body</option>
+                                <option value="header">Header</option>
+                              </>
+                            )}
                           </Select>
                         </div>
                         <div className="flex items-end">
@@ -428,7 +566,8 @@ export function ToolEditor() {
             </CardContent>
           </Card>
 
-          {/* Authentication */}
+          {/* Authentication - only for HTTP tools */}
+          {tool.executorType !== 'cli' && (
           <Card>
             <CardHeader>
               <CardTitle>Authentication</CardTitle>
@@ -603,6 +742,7 @@ export function ToolEditor() {
               )}
             </CardContent>
           </Card>
+          )}
         </div>
       </div>
     </>

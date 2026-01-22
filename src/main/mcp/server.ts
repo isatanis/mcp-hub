@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import * as z from 'zod'
 import { getDatabase } from '../db'
 import { HttpExecutor } from './executors/http'
+import { CliExecutor } from './executors/cli'
 import type { Tool } from '@shared/types'
 
 let serverInstance: McpServer | null = null
@@ -85,14 +86,14 @@ export async function startMcpServer(): Promise<void> {
   const tools = db.prepare('SELECT * FROM tools WHERE enabled = 1').all() as DbTool[]
 
   const httpExecutor = new HttpExecutor()
+  const cliExecutor = new CliExecutor()
 
   // Register each tool
   for (const dbTool of tools) {
     const tool = dbToTool(dbTool)
+    const inputSchema = convertToZodSchema(tool)
 
     if (tool.executorType === 'http') {
-      const inputSchema = convertToZodSchema(tool)
-
       server.tool(
         tool.name,
         tool.description,
@@ -102,6 +103,28 @@ export async function startMcpServer(): Promise<void> {
             const result = await httpExecutor.execute(tool, params as Record<string, unknown>)
             return {
               content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+            return {
+              content: [{ type: 'text' as const, text: `Error: ${errorMessage}` }],
+              isError: true
+            }
+          }
+        }
+      )
+    } else if (tool.executorType === 'cli') {
+      server.tool(
+        tool.name,
+        tool.description,
+        inputSchema,
+        async (params) => {
+          try {
+            const result = await cliExecutor.execute(tool, params as Record<string, unknown>)
+            // Format result - if it's a string, return directly; otherwise JSON stringify
+            const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+            return {
+              content: [{ type: 'text' as const, text }]
             }
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'

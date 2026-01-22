@@ -23,9 +23,11 @@ export interface HttpConfig {
 }
 
 export interface CliConfig {
-  command: string
+  command: string // Command template with {param} placeholders, e.g., "ls -la {path}"
   workingDir?: string
-  timeout?: number
+  timeout?: number // Default: 30000ms
+  shell?: boolean // Run in shell (default: true)
+  env?: Record<string, string> // Additional environment variables
 }
 
 export interface ScriptConfig {
@@ -40,7 +42,9 @@ export interface ToolParameter {
   description: string
   required: boolean
   default?: unknown
-  location: 'query' | 'path' | 'body' | 'header'
+  location: 'query' | 'path' | 'body' | 'header' | 'argument' | 'env'
+  // 'argument' - interpolated into CLI command template
+  // 'env' - passed as environment variable
 }
 
 export interface AuthConfig {
@@ -80,16 +84,29 @@ export interface ServerStatus {
 export interface TestResult {
   success: boolean
   duration: number
-  request: {
+  executorType: 'http' | 'cli' | 'script'
+  // HTTP-specific fields
+  request?: {
     method: string
     url: string
     headers: Record<string, string>
     body?: unknown
   }
-  response: {
+  response?: {
     status: number
     headers: Record<string, string>
     body: unknown
+  }
+  // CLI-specific fields
+  command?: {
+    raw: string
+    workingDir?: string
+    env?: Record<string, string>
+  }
+  output?: {
+    stdout: string
+    stderr: string
+    exitCode: number
   }
   error?: string
 }

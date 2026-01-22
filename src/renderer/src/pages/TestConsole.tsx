@@ -201,68 +201,141 @@ export function TestConsole() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Request */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-medium text-white">Request</h4>
-                        <button
-                          onClick={() => copyToClipboard(JSON.stringify(result.request, null, 2))}
-                          className="text-text-secondary hover:text-white transition-colors"
-                        >
-                          <Copy className="size-4" />
-                        </button>
-                      </div>
-                      <div className="bg-background-dark rounded-lg p-4 border border-border-dark">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge
-                            className={cn(
-                              'text-[10px] font-bold',
-                              result.request.method === 'GET'
-                                ? 'bg-blue-500/10 text-blue-400'
-                                : result.request.method === 'POST'
-                                  ? 'bg-green-500/10 text-green-400'
-                                  : 'bg-orange-500/10 text-orange-400'
-                            )}
-                          >
-                            {result.request.method}
-                          </Badge>
-                          <span className="text-xs font-mono text-text-secondary truncate">
-                            {result.request.url}
-                          </span>
+                    {result.executorType === 'cli' ? (
+                      <>
+                        {/* Command */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-white">Command</h4>
+                            <button
+                              onClick={() => copyToClipboard(result.command?.raw || '')}
+                              className="text-text-secondary hover:text-white transition-colors"
+                            >
+                              <Copy className="size-4" />
+                            </button>
+                          </div>
+                          <div className="bg-background-dark rounded-lg p-4 border border-border-dark">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className="text-[10px] font-bold bg-purple-500/10 text-purple-400">
+                                CLI
+                              </Badge>
+                              {result.command?.workingDir && (
+                                <span className="text-xs font-mono text-text-secondary">
+                                  in {result.command.workingDir}
+                                </span>
+                              )}
+                            </div>
+                            <pre className="text-xs font-mono text-white overflow-x-auto whitespace-pre-wrap">
+                              {result.command?.raw}
+                            </pre>
+                          </div>
                         </div>
-                        {result.request.body !== undefined && (
-                          <pre className="text-xs font-mono text-text-secondary overflow-x-auto">
-                            {JSON.stringify(result.request.body, null, 2)}
-                          </pre>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Response */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-medium text-white">Response</h4>
-                        <button
-                          onClick={() => copyToClipboard(JSON.stringify(result.response.body, null, 2))}
-                          className="text-text-secondary hover:text-white transition-colors"
-                        >
-                          <Copy className="size-4" />
-                        </button>
-                      </div>
-                      <div className="bg-background-dark rounded-lg p-4 border border-border-dark">
-                        <div className="mb-2">
-                          <Badge
-                            variant={result.response.status >= 200 && result.response.status < 300 ? 'success' : 'danger'}
-                            className="text-[10px]"
-                          >
-                            {result.response.status}
-                          </Badge>
+                        {/* Output */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-white">Output</h4>
+                            <button
+                              onClick={() => copyToClipboard(result.output?.stdout || '')}
+                              className="text-text-secondary hover:text-white transition-colors"
+                            >
+                              <Copy className="size-4" />
+                            </button>
+                          </div>
+                          <div className="bg-background-dark rounded-lg p-4 border border-border-dark">
+                            <div className="mb-2">
+                              <Badge
+                                variant={result.output?.exitCode === 0 ? 'success' : 'danger'}
+                                className="text-[10px]"
+                              >
+                                Exit Code: {result.output?.exitCode}
+                              </Badge>
+                            </div>
+                            {result.output?.stdout && (
+                              <div className="mb-2">
+                                <p className="text-xs text-text-secondary mb-1">stdout:</p>
+                                <pre className="text-xs font-mono text-white overflow-x-auto max-h-64 whitespace-pre-wrap">
+                                  {result.output.stdout}
+                                </pre>
+                              </div>
+                            )}
+                            {result.output?.stderr && (
+                              <div>
+                                <p className="text-xs text-text-secondary mb-1">stderr:</p>
+                                <pre className="text-xs font-mono text-red-400 overflow-x-auto max-h-32 whitespace-pre-wrap">
+                                  {result.output.stderr}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <pre className="text-xs font-mono text-white overflow-x-auto max-h-96">
-                          {JSON.stringify(result.response.body, null, 2)}
-                        </pre>
-                      </div>
-                    </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* HTTP Request */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-white">Request</h4>
+                            <button
+                              onClick={() => copyToClipboard(JSON.stringify(result.request, null, 2))}
+                              className="text-text-secondary hover:text-white transition-colors"
+                            >
+                              <Copy className="size-4" />
+                            </button>
+                          </div>
+                          <div className="bg-background-dark rounded-lg p-4 border border-border-dark">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge
+                                className={cn(
+                                  'text-[10px] font-bold',
+                                  result.request?.method === 'GET'
+                                    ? 'bg-blue-500/10 text-blue-400'
+                                    : result.request?.method === 'POST'
+                                      ? 'bg-green-500/10 text-green-400'
+                                      : 'bg-orange-500/10 text-orange-400'
+                                )}
+                              >
+                                {result.request?.method}
+                              </Badge>
+                              <span className="text-xs font-mono text-text-secondary truncate">
+                                {result.request?.url}
+                              </span>
+                            </div>
+                            {result.request?.body !== undefined && (
+                              <pre className="text-xs font-mono text-text-secondary overflow-x-auto">
+                                {JSON.stringify(result.request.body, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* HTTP Response */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-medium text-white">Response</h4>
+                            <button
+                              onClick={() => copyToClipboard(JSON.stringify(result.response?.body, null, 2))}
+                              className="text-text-secondary hover:text-white transition-colors"
+                            >
+                              <Copy className="size-4" />
+                            </button>
+                          </div>
+                          <div className="bg-background-dark rounded-lg p-4 border border-border-dark">
+                            <div className="mb-2">
+                              <Badge
+                                variant={(result.response?.status || 0) >= 200 && (result.response?.status || 0) < 300 ? 'success' : 'danger'}
+                                className="text-[10px]"
+                              >
+                                {result.response?.status}
+                              </Badge>
+                            </div>
+                            <pre className="text-xs font-mono text-white overflow-x-auto max-h-96">
+                              {JSON.stringify(result.response?.body, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {result.error && (
                       <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">

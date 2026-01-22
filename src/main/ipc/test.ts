@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { HttpExecutor } from '../mcp/executors/http'
+import { CliExecutor } from '../mcp/executors/cli'
 import { getDatabase } from '../db'
 import { v4 as uuidv4 } from 'uuid'
 import type { TestResult, Tool } from '@shared/types'
@@ -37,6 +38,14 @@ function saveExecutionLog(toolId: string, result: TestResult): void {
   const id = uuidv4()
   const now = new Date().toISOString()
 
+  // Normalize request/response for both HTTP and CLI results
+  const request = result.executorType === 'cli'
+    ? result.command
+    : result.request
+  const response = result.executorType === 'cli'
+    ? result.output
+    : result.response
+
   db.prepare(`
     INSERT INTO execution_logs (id, tool_id, timestamp, success, duration_ms, request, response, error)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -46,17 +55,17 @@ function saveExecutionLog(toolId: string, result: TestResult): void {
     now,
     result.success ? 1 : 0,
     result.duration,
-    JSON.stringify(result.request),
-    JSON.stringify(result.response),
+    JSON.stringify(request),
+    JSON.stringify(response),
     result.error || null
   )
 
   // Clean up old logs (keep last 1000)
   db.prepare(`
-    DELETE FROM execution_logs 
+    DELETE FROM execution_logs
     WHERE id NOT IN (
-      SELECT id FROM execution_logs 
-      ORDER BY timestamp DESC 
+      SELECT id FROM execution_logs
+      ORDER BY timestamp DESC
       LIMIT 1000
     )
   `).run()
@@ -64,6 +73,7 @@ function saveExecutionLog(toolId: string, result: TestResult): void {
 
 export function registerTestHandlers(): void {
   const httpExecutor = new HttpExecutor()
+  const cliExecutor = new CliExecutor()
 
   ipcMain.handle('tools:test', async (_, id: string, params: Record<string, unknown>): Promise<TestResult> => {
     const db = getDatabase()
@@ -79,6 +89,8 @@ export function registerTestHandlers(): void {
 
     if (tool.executorType === 'http') {
       result = await httpExecutor.test(tool, params)
+    } else if (tool.executorType === 'cli') {
+      result = await cliExecutor.test(tool, params)
     } else {
       throw new Error(`Executor type ${tool.executorType} not supported yet`)
     }
