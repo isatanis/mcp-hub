@@ -1,0 +1,102 @@
+// Core data types
+
+export interface Tool {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  executorType: 'http' | 'cli' | 'script'
+  executorConfig: HttpConfig | CliConfig | ScriptConfig
+  parameters: ToolParameter[]
+  auth: AuthConfig
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface HttpConfig {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  url: string
+  headers: Record<string, string>
+  bodyTemplate: string
+  responsePath?: string
+  timeout?: number
+}
+
+export interface CliConfig {
+  command: string
+  workingDir?: string
+  timeout?: number
+}
+
+export interface ScriptConfig {
+  runtime: 'python' | 'node' | 'shell'
+  scriptPath: string
+  args?: string[]
+}
+
+export interface ToolParameter {
+  name: string
+  type: 'string' | 'integer' | 'boolean' | 'number' | 'object'
+  description: string
+  required: boolean
+  default?: unknown
+  location: 'query' | 'path' | 'body' | 'header'
+}
+
+export interface AuthConfig {
+  type: 'none' | 'api_key' | 'bearer' | 'basic' | 'oauth2'
+  apiKey?: {
+    key: string
+    location: 'header' | 'query'
+    paramName: string
+  }
+  bearer?: {
+    token: string
+  }
+  basic?: {
+    username: string
+    password: string
+  }
+}
+
+export interface ServerConfig {
+  id: string
+  name: string
+  transport: 'stdio' | 'sse'
+  port?: number
+  autoStart: boolean
+  toolIds: string[]
+  createdAt: Date
+}
+
+export interface ServerStatus {
+  running: boolean
+  transport: 'stdio' | 'sse'
+  port?: number
+  connectedClients: number
+  uptime?: number
+}
+
+export interface TestResult {
+  success: boolean
+  duration: number
+  request: {
+    method: string
+    url: string
+    headers: Record<string, string>
+    body?: unknown
+  }
+  response: {
+    status: number
+    headers: Record<string, string>
+    body: unknown
+  }
+  error?: string
+}
+
+export interface LogEntry {
+  timestamp: Date
+  level: 'info' | 'warn' | 'error'
+  message: string
+  toolId?: string
+}
