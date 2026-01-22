@@ -5,8 +5,10 @@ import { ToolList } from './pages/ToolList'
 import { ToolEditor } from './pages/ToolEditor'
 import { TestConsole } from './pages/TestConsole'
 import { Settings } from './pages/Settings'
+import { ExecutionLogs } from './pages/ExecutionLogs'
 import { ToastProvider } from './components/ui/toast'
 import './assets/globals.css'
+
 
 function App() {
   return (
@@ -20,6 +22,7 @@ function App() {
             <Route path="/tools/:id" element={<ToolEditor />} />
             <Route path="/test-console" element={<TestConsole />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/execution-logs" element={<ExecutionLogs />} />
           </Routes>
         </AppShell>
       </BrowserRouter>

@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Wrench, Terminal, Settings as SettingsIcon } from 'lucide-react'
+import { LayoutDashboard, Wrench, Terminal, Settings as SettingsIcon, LogsIcon } from 'lucide-react'
 
 interface SidebarProps {
   className?: string
@@ -13,6 +13,7 @@ export function Sidebar({ className }: SidebarProps) {
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/tools', icon: Wrench, label: 'Tools' },
     { path: '/test-console', icon: Terminal, label: 'Test Console' },
+    { path: '/execution-logs', icon: LogsIcon, label: 'Execution Logs' },
     { path: '/settings', icon: SettingsIcon, label: 'Settings' }
   ]
 
