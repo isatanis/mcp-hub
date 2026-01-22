@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import type { ElectronAPI } from '@electron-toolkit/preload'
-import type { Tool, ServerConfig, ServerStatus, TestResult, LogEntry } from '../../shared/types'
+import type { Tool, ServerConfig, ServerStatus, TestResult, LogEntry, ExecutionLog } from '../../shared/types'
 
 interface API {
   tools: {
@@ -32,6 +32,18 @@ interface API {
     retrieve: (key: string) => Promise<string | null>
     delete: (key: string) => Promise<void>
     list: () => Promise<string[]>
+  }
+  logs: {
+    getExecutionLogs: (options?: { limit?: number; offset?: number; toolId?: string; source?: string }) => Promise<ExecutionLog[]>
+    getStats: () => Promise<{
+      totalExecutions: number
+      successCount: number
+      failureCount: number
+      mcpCount: number
+      testCount: number
+      avgDuration: number
+    }>
+    clearLogs: () => Promise<void>
   }
 }
 

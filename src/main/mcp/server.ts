@@ -4,7 +4,8 @@ import * as z from 'zod'
 import { getDatabase } from '../db'
 import { HttpExecutor } from './executors/http'
 import { CliExecutor } from './executors/cli'
-import type { Tool } from '@shared/types'
+import { saveExecutionLog } from '../ipc/test'
+import type { Tool, TestResult } from '@shared/types'
 
 let serverInstance: McpServer | null = null
 let isRunning = false
@@ -99,10 +100,29 @@ export async function startMcpServer(): Promise<void> {
         tool.description,
         inputSchema,
         async (params) => {
+          let testResult: TestResult | null = null
           try {
-            const result = await httpExecutor.execute(tool, params as Record<string, unknown>)
+            // Use test() to get full result for logging
+            testResult = await httpExecutor.test(tool, params as Record<string, unknown>)
+
+            // Log the execution
+            saveExecutionLog({
+              toolId: tool.id,
+              toolName: tool.name,
+              executorType: 'http',
+              source: 'mcp',
+              result: testResult
+            })
+
+            if (!testResult.success) {
+              return {
+                content: [{ type: 'text' as const, text: `Error: ${testResult.error}` }],
+                isError: true
+              }
+            }
+
             return {
-              content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+              content: [{ type: 'text' as const, text: JSON.stringify(testResult.response?.body, null, 2) }]
             }
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -119,10 +139,29 @@ export async function startMcpServer(): Promise<void> {
         tool.description,
         inputSchema,
         async (params) => {
+          let testResult: TestResult | null = null
           try {
-            const result = await cliExecutor.execute(tool, params as Record<string, unknown>)
-            // Format result - if it's a string, return directly; otherwise JSON stringify
-            const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+            // Use test() to get full result for logging
+            testResult = await cliExecutor.test(tool, params as Record<string, unknown>)
+
+            // Log the execution
+            saveExecutionLog({
+              toolId: tool.id,
+              toolName: tool.name,
+              executorType: 'cli',
+              source: 'mcp',
+              result: testResult
+            })
+
+            if (!testResult.success) {
+              return {
+                content: [{ type: 'text' as const, text: `Error: ${testResult.error}` }],
+                isError: true
+              }
+            }
+
+            // Return stdout
+            const text = testResult.output?.stdout || ''
             return {
               content: [{ type: 'text' as const, text }]
             }

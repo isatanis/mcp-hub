@@ -5,6 +5,32 @@ import { DB_SCHEMA } from './schema'
 
 let db: Database.Database | null = null
 
+function runMigrations(database: Database.Database): void {
+  // Get existing columns in execution_logs
+  const columns = database.prepare("PRAGMA table_info(execution_logs)").all() as Array<{ name: string }>
+  const columnNames = columns.map(c => c.name)
+
+  // Add missing columns
+  const migrations: Array<{ column: string; sql: string }> = [
+    { column: 'tool_name', sql: 'ALTER TABLE execution_logs ADD COLUMN tool_name TEXT' },
+    { column: 'executor_type', sql: 'ALTER TABLE execution_logs ADD COLUMN executor_type TEXT' },
+    { column: 'source', sql: "ALTER TABLE execution_logs ADD COLUMN source TEXT DEFAULT 'test'" },
+    { column: 'input_size', sql: 'ALTER TABLE execution_logs ADD COLUMN input_size INTEGER' },
+    { column: 'output_size', sql: 'ALTER TABLE execution_logs ADD COLUMN output_size INTEGER' }
+  ]
+
+  for (const migration of migrations) {
+    if (!columnNames.includes(migration.column)) {
+      try {
+        database.exec(migration.sql)
+      } catch (error) {
+        // Column might already exist, ignore
+        console.log(`Migration for ${migration.column} skipped:`, error)
+      }
+    }
+  }
+}
+
 export function initDatabase(): Database.Database {
   if (db) return db
 
@@ -17,6 +43,9 @@ export function initDatabase(): Database.Database {
 
   // Initialize schema
   db.exec(DB_SCHEMA)
+
+  // Run migrations for existing databases
+  runMigrations(db)
 
   // Create default server config if it doesn't exist
   const configExists = db.prepare('SELECT COUNT(*) as count FROM server_config').get() as {

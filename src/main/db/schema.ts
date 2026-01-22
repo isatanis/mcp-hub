@@ -25,11 +25,16 @@ CREATE TABLE IF NOT EXISTS server_config (
 CREATE TABLE IF NOT EXISTS execution_logs (
   id TEXT PRIMARY KEY,
   tool_id TEXT NOT NULL,
+  tool_name TEXT,
+  executor_type TEXT,
+  source TEXT DEFAULT 'test',
   timestamp TEXT NOT NULL,
   success INTEGER NOT NULL,
   duration_ms INTEGER NOT NULL,
   request TEXT NOT NULL,
   response TEXT,
+  input_size INTEGER,
+  output_size INTEGER,
   error TEXT,
   FOREIGN KEY (tool_id) REFERENCES tools(id) ON DELETE CASCADE
 );

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { Tool, ServerConfig, TestResult } from '../shared/types'
+import type { Tool, ServerConfig, TestResult, ExecutionLog } from '../shared/types'
 
 // Custom APIs for renderer
 const api = {
@@ -31,6 +31,19 @@ const api = {
     retrieve: (key: string): Promise<string | null> => ipcRenderer.invoke('secrets:retrieve', key),
     delete: (key: string): Promise<void> => ipcRenderer.invoke('secrets:delete', key),
     list: (): Promise<string[]> => ipcRenderer.invoke('secrets:list')
+  },
+  logs: {
+    getExecutionLogs: (options?: { limit?: number; offset?: number; toolId?: string; source?: string }): Promise<ExecutionLog[]> =>
+      ipcRenderer.invoke('logs:getExecutionLogs', options),
+    getStats: (): Promise<{
+      totalExecutions: number
+      successCount: number
+      failureCount: number
+      mcpCount: number
+      testCount: number
+      avgDuration: number
+    }> => ipcRenderer.invoke('logs:getStats'),
+    clearLogs: (): Promise<void> => ipcRenderer.invoke('logs:clearLogs')
   }
 }
 

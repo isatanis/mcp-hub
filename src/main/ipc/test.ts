@@ -33,31 +33,53 @@ function dbToTool(dbTool: DbTool): Tool {
   }
 }
 
-function saveExecutionLog(toolId: string, result: TestResult): void {
+export interface ExecutionLogEntry {
+  toolId: string
+  toolName: string
+  executorType: 'http' | 'cli' | 'script'
+  source: 'test' | 'mcp'
+  result: TestResult
+}
+
+export function saveExecutionLog(entry: ExecutionLogEntry): void {
   const db = getDatabase()
   const id = uuidv4()
   const now = new Date().toISOString()
 
   // Normalize request/response for both HTTP and CLI results
-  const request = result.executorType === 'cli'
-    ? result.command
-    : result.request
-  const response = result.executorType === 'cli'
-    ? result.output
-    : result.response
+  const request = entry.result.executorType === 'cli'
+    ? entry.result.command
+    : entry.result.request
+  const response = entry.result.executorType === 'cli'
+    ? entry.result.output
+    : entry.result.response
+
+  // Calculate sizes
+  const requestStr = JSON.stringify(request)
+  const responseStr = JSON.stringify(response)
+  const inputSize = Buffer.byteLength(requestStr, 'utf8')
+  const outputSize = Buffer.byteLength(responseStr, 'utf8')
 
   db.prepare(`
-    INSERT INTO execution_logs (id, tool_id, timestamp, success, duration_ms, request, response, error)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO execution_logs (
+      id, tool_id, tool_name, executor_type, source, timestamp,
+      success, duration_ms, request, response, input_size, output_size, error
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
-    toolId,
+    entry.toolId,
+    entry.toolName,
+    entry.executorType,
+    entry.source,
     now,
-    result.success ? 1 : 0,
-    result.duration,
-    JSON.stringify(request),
-    JSON.stringify(response),
-    result.error || null
+    entry.result.success ? 1 : 0,
+    entry.result.duration,
+    requestStr,
+    responseStr,
+    inputSize,
+    outputSize,
+    entry.result.error || null
   )
 
   // Clean up old logs (keep last 1000)
@@ -96,7 +118,13 @@ export function registerTestHandlers(): void {
     }
 
     // Save execution log
-    saveExecutionLog(id, result)
+    saveExecutionLog({
+      toolId: id,
+      toolName: tool.name,
+      executorType: tool.executorType,
+      source: 'test',
+      result
+    })
 
     return result
   })

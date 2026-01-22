@@ -117,3 +117,19 @@ export interface LogEntry {
   message: string
   toolId?: string
 }
+
+export interface ExecutionLog {
+  id: string
+  toolId: string
+  toolName: string
+  executorType: 'http' | 'cli' | 'script'
+  source: 'test' | 'mcp'
+  timestamp: Date
+  success: boolean
+  duration: number
+  inputSize: number
+  outputSize: number
+  request: unknown
+  response: unknown
+  error?: string
+}
