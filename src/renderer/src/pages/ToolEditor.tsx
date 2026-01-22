@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
@@ -7,14 +7,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Save, Play, ArrowLeft, Plus, X } from 'lucide-react'
+import { Save, Play, ArrowLeft, Plus, X, Loader2 } from 'lucide-react'
 import { useToolStore } from '@/store/toolStore'
+import { useToast } from '@/components/ui/toast'
 import type { Tool, HttpConfig, ToolParameter } from '@shared/types'
 
 export function ToolEditor() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { tools, createTool, saveTool } = useToolStore()
+  const { toast } = useToast()
   const isNew = !id
 
   const [tool, setTool] = useState<Partial<Tool>>({
@@ -33,27 +35,43 @@ export function ToolEditor() {
     auth: { type: 'none' }
   })
 
+  const [isSaving, setIsSaving] = useState(false)
+  const originalToolRef = useRef<string>('')
+
   useEffect(() => {
     if (!isNew && id) {
       const existingTool = tools.find((t) => t.id === id)
       if (existingTool) {
         setTool(existingTool)
+        originalToolRef.current = JSON.stringify(existingTool)
       }
+    } else {
+      originalToolRef.current = JSON.stringify(tool)
     }
   }, [id, isNew, tools])
+
+  const hasChanges = JSON.stringify(tool) !== originalToolRef.current
 
   const httpConfig = tool.executorConfig as HttpConfig
 
   const handleSave = async () => {
+    setIsSaving(true)
     try {
+      let newTool: Tool | undefined
       if (isNew) {
-        const newTool = await createTool(tool as Omit<Tool, 'id' | 'createdAt' | 'updatedAt'>)
-        navigate(`/tools/${newTool.id}`)
+        newTool = await createTool(tool as Omit<Tool, 'id' | 'createdAt' | 'updatedAt'>)
       } else if (id) {
         await saveTool(id, tool)
       }
+      const toolId = newTool?.id ?? id
+      toast(isNew ? 'Tool created successfully' : 'Tool saved successfully', 'success')
+      originalToolRef.current = JSON.stringify(tool)
+      navigate(`/tools/${toolId}`)
     } catch (error) {
       console.error('Failed to save tool:', error)
+      toast('Failed to save tool', 'error')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -144,9 +162,9 @@ export function ToolEditor() {
               <Play className="size-4" />
               Test
             </Button>
-            <Button onClick={handleSave}>
-              <Save className="size-4" />
-              Save
+            <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
+              {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
         }
@@ -425,22 +443,22 @@ export function ToolEditor() {
                     if (authType === 'none') {
                       setTool({ ...tool, auth: { type: 'none' } })
                     } else if (authType === 'api_key') {
-                      setTool({ 
-                        ...tool, 
-                        auth: { 
-                          type: 'api_key', 
-                          apiKey: { key: '', location: 'header', paramName: 'X-API-Key' } 
-                        } 
+                      setTool({
+                        ...tool,
+                        auth: {
+                          type: 'api_key',
+                          apiKey: { key: '', location: 'header', paramName: 'X-API-Key' }
+                        }
                       })
                     } else if (authType === 'bearer') {
-                      setTool({ 
-                        ...tool, 
-                        auth: { type: 'bearer', bearer: { token: '' } } 
+                      setTool({
+                        ...tool,
+                        auth: { type: 'bearer', bearer: { token: '' } }
                       })
                     } else if (authType === 'basic') {
-                      setTool({ 
-                        ...tool, 
-                        auth: { type: 'basic', basic: { username: '', password: '' } } 
+                      setTool({
+                        ...tool,
+                        auth: { type: 'basic', basic: { username: '', password: '' } }
                       })
                     }
                   }}
